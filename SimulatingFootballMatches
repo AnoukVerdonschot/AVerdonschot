@@ -1,0 +1,381 @@
+
+**Code with all functions needed to create a tournament, and get ranking results for a given system**
+
+*First, define functions that create an artificial tournament*
+
+Function that creates a round robin schedule for the tournament:
+```{r}
+GenerateRoundRobin <- function(NrTeams, Shuffle = FALSE) {
+  NrRounds <- (NrTeams-1)*2
+  if (Shuffle == TRUE) {
+    Teams <- sample(1:NrTeams)
+  } else { Teams <- (1:NrTeams)
+  }
+  Rounds <- list()
+  for(i in 1:(NrRounds/2)){
+    Round <- data.frame(Round = i, Home = Teams[1:(NrTeams/2)], Away = rev(Teams)[1:(NrTeams/2)])
+    Rounds[[i]] <- Round
+    Teams <- c(Teams[1], last(Teams), head(Teams[-1],-1) ) 
+  }
+  RoundRobin1 <- bind_rows(Rounds)
+  RoundRobin2 <- RoundRobin1
+  RoundRobin2$Round <- RoundRobin1$Round + NrRounds/2
+  RoundRobin2$Home <- RoundRobin1$Away
+  RoundRobin2$Away <- RoundRobin1$Home
+  RoundRobin <- bind_rows(RoundRobin1, RoundRobin2)
+  return(RoundRobin)
+}
+```
+
+Function that generates the mean value that represents each team strength:
+```{r}
+GenerateMean <- function(NrTeams, MinMean, MaxMean, TeamDistance, Calculation) {
+  if (Calculation == "Fixed") {
+    MeanStrength <- (seq(from = MinMean + TeamDistance*(NrTeams-1), to = MinMean, by = -TeamDistance))
+  } else if (Calculation == "Random") {
+    MeanStrength <- runif(NrTeams, min = MinMean, max = MaxMean)
+  } 
+  return (MeanStrength)
+}
+```
+
+Function that generates the standard deviation for the strenght value for each team:
+```{r}
+GenerateSd <- function(NrTeams, FixedSd, MinSd, MaxSd, FixedSdPercentage, MinSdPercentage, MaxSdPercentage, Calculation) {
+  if (Calculation == "Fixed") {
+    SdStrength <- (FixedSd*rep(1, NrTeams))
+  } else if (Calculation == "RandomPercentage") {
+    SdPercentage <- runif(NrTeams, min = MinSdPercentage, max = MaxSdPercentage)
+    SdStrength <- (SdPercentage*(x))/100
+  }  
+  return (SdStrength)
+}
+```
+
+Function that generates a draw for the home team and away team for each game:
+```{r}
+GenerateDrawDifference <- function(NrTeams, x, y, HomeAdv = FALSE) {
+  DrawHome <- matrix(nrow = NrTeams, ncol = NrTeams)
+  DrawAway <- matrix(nrow = NrTeams, ncol = NrTeams)
+  
+  for (HomeNr in 1:NrTeams) for (AwayNr in 1:NrTeams) {
+    if (HomeNr != AwayNr) {
+      DrawAway[AwayNr, HomeNr] <- max(0, rnorm(1, x[AwayNr], y[AwayNr]))
+      if (HomeAdv == TRUE) {
+        DrawHome[HomeNr, AwayNr] <- max(0, max(rnorm(2, x[HomeNr], y[HomeNr])))
+      } else {
+        DrawHome[HomeNr, AwayNr] <- max(0, rnorm(1, x[HomeNr], y[HomeNr]))
+      }}}
+  DrawDifference <- DrawHome - t(DrawAway)
+  DrawResults <- list(DrawHome = DrawHome, DrawAway = DrawAway, DrawDifference = DrawDifference)
+  return(DrawResults)
+}
+```
+
+Function that generates a ratio based on the draws for each game:
+```{r}
+GenerateRatios <- function(NrTeams, DrawHome, DrawAway, DrawDifference, x) {
+  AverageNrGoals <- 1.37
+  MaximalDraw <- max(x)
+  AverageDraw <- sort(x, decreasing = TRUE)[round(NrTeams/2)]
+  RatioHome <- matrix(nrow = NrTeams, ncol = NrTeams)
+  RatioAway <- matrix(nrow = NrTeams, ncol = NrTeams)
+  
+  for (HomeNr in 1:NrTeams) for (AwayNr in 1:NrTeams) {
+    if (HomeNr != AwayNr) {
+      RatioHome[HomeNr, AwayNr] <- max(0, (1 + DrawDifference[HomeNr, AwayNr]/MaximalDraw))
+      RatioAway[AwayNr, HomeNr] <- max(0, (1 - DrawDifference[HomeNr, AwayNr]/MaximalDraw))
+      AdaptedRatioHome <- RatioHome * AverageNrGoals
+      AdaptedRatioAway <- RatioAway * AverageNrGoals
+      RatioResults <- list(RatioHome = RatioHome, RatioAway = RatioAway, AdaptedRatioHome = AdaptedRatioHome, AdaptedRatioAway = AdaptedRatioAway)
+    }}
+  return(RatioResults)
+}
+```
+
+Function that generates number of goals scored by each team for each game:
+```{r}
+GenerateGoals <- function(NrTeams, AdaptedRatioHome, AdaptedRatioAway) {
+  GoalsHome <- matrix(nrow = NrTeams, ncol = NrTeams)
+  GoalsAway <- matrix(nrow = NrTeams, ncol = NrTeams)
+  
+  for (HomeNr in 1:NrTeams) for (AwayNr in 1:NrTeams) {
+    if (HomeNr != AwayNr) {
+      GoalsHome[HomeNr, AwayNr] <- rpois(1, AdaptedRatioHome[HomeNr, AwayNr])
+      GoalsAway[HomeNr, AwayNr] <- rpois(1, AdaptedRatioAway[HomeNr, AwayNr])
+      GoalDifference <- GoalsHome - t(GoalsAway)
+      AbsGoalDifference <- abs(GoalDifference)
+      GoalResults <- list(GoalsHome = GoalsHome, GoalsAway = GoalsAway, GoalDifference = GoalDifference, AbsGoalDifference = AbsGoalDifference)
+    }}
+  return(GoalResults)
+}
+```
+
+*Second, functions to generate needed variables needed by some rating systems*
+
+Function that calculates the stationary vector of a stochastic matrix. Necessary for the markov method:
+```{r}
+mpow <- function(matrix, n) {
+  if (n == 0) diag(nrow(matrix))
+  else if (n == 1) matrix
+  else matrix %*% mpow(matrix, n - 1)
+}
+```
+
+*Third, functions to apply the rating systems on the created tournament, and present the results*
+
+Function that generates the rating and rankings for each rating system, and calculates the kendall to show the correlation between the true ranking and the calculated ranking of each system:
+```{r}
+GenerateKendalls <- function(NrTeams, Systems, GoalDifference, GoalsHome, GoalsAway, Continue = FALSE, ContinuedValues, TrueRanking, RR, RatingSystem) {
+  ActualResults <- matrix(nrow = NrTeams, ncol = NrTeams)
+  GoalsBG <- GoalsHome + GoalsAway
+  diag(GoalsBG) <- 0
+  G <- 1
+  K <- 30
+  if (Continue == FALSE) {
+    ContinuedValues = array(0, dim = c(NrTeams, NrTeams, length(Systems)))
+    EloNew <- rep(1000, NrTeams)
+  } else if (Continue == TRUE) {
+    ContinuedValues = ContinuedValues
+    EloNew <- ContinuedValues[ , 1, which(Systems == RatingSystem)]
+  }
+  if (RatingSystem == "EloGoals") {
+    A <- 400
+    h <- 0
+  }
+  if (RatingSystem == "FIFAwomen") {
+    A <- 400
+    h <- 100
+  } 
+  if (RatingSystem == "FIFAmen") {
+    A <- 600
+    h <- 0
+  }
+  for (nr in 1:nrow(RR)) {
+    if (RatingSystem == "FIFAmen" || RatingSystem == "AdjustedGoals") {
+      if (GoalDifference[RR$Home[nr], RR$Away[nr]] > 0) { 
+        ActualResults[RR$Home[nr], RR$Away[nr]] <- 1
+      } else if (GoalDifference[RR$Home[nr], RR$Away[nr]] < 0) {
+        ActualResults[RR$Home[nr], RR$Away[nr]] <- 0
+      } else if (GoalDifference[RR$Home[nr], RR$Away[nr]] == 0) {
+        ActualResults[RR$Home[nr], RR$Away[nr]] <- 0.5
+      }}
+    if (RatingSystem == "EloGoals") {
+      ActualResults[RR$Home[nr], RR$Away[nr]] <- (GoalsHome[RR$Home[nr], RR$Away[nr]] + 1)/(GoalsHome[RR$Home[nr], RR$Away[nr]] + GoalsAway[RR$Away[nr], RR$Home[nr]] + 2)
+    }
+    if (RatingSystem == "FIFAwomen") {
+      if (GoalsHome[RR$Home[nr], RR$Away[nr]] == 0 & GoalsAway[RR$Away[nr], RR$Home[nr]] == 0) {
+        ActualResults[RR$Home[nr], RR$Away[nr]] <- 0.47
+      } else if (GoalsHome[RR$Home[nr], RR$Away[nr]] == 0 & GoalsAway[RR$Away[nr], RR$Home[nr]] == 1) {
+        ActualResults[RR$Home[nr], RR$Away[nr]] <- 0.15
+      } else if (GoalsHome[RR$Home[nr], RR$Away[nr]] == 0 & GoalsAway[RR$Away[nr], RR$Home[nr]] == 2) {
+        ActualResults[RR$Home[nr], RR$Away[nr]] <- 0.08
+      } else if (GoalsHome[RR$Home[nr], RR$Away[nr]] == 0 & GoalsAway[RR$Away[nr], RR$Home[nr]] == 3) {
+        ActualResults[RR$Home[nr], RR$Away[nr]] <- 0.04
+      } else if (GoalsHome[RR$Home[nr], RR$Away[nr]] == 0 & GoalsAway[RR$Away[nr], RR$Home[nr]] == 4) {
+        ActualResults[RR$Home[nr], RR$Away[nr]] <- 0.03
+      } else if (GoalsHome[RR$Home[nr], RR$Away[nr]] == 0 & GoalsAway[RR$Away[nr], RR$Home[nr]] == 5) {
+        ActualResults[RR$Home[nr], RR$Away[nr]] <- 0.02
+      } else if (GoalsHome[RR$Home[nr], RR$Away[nr]] == 0 & GoalsAway[RR$Away[nr], RR$Home[nr]] >= 6) {
+        ActualResults[RR$Home[nr], RR$Away[nr]] <- 0.01
+      } else if (GoalsHome[RR$Home[nr], RR$Away[nr]] == 1 & GoalsAway[RR$Away[nr], RR$Home[nr]] == 0) {
+        ActualResults[RR$Home[nr], RR$Away[nr]] <- 0.85
+      } else if (GoalsHome[RR$Home[nr], RR$Away[nr]] == 1 & GoalsAway[RR$Away[nr], RR$Home[nr]] == 1) {
+        ActualResults[RR$Home[nr], RR$Away[nr]] <- 0.5
+      } else if (GoalsHome[RR$Home[nr], RR$Away[nr]] == 1 & GoalsAway[RR$Away[nr], RR$Home[nr]] == 2) {
+        ActualResults[RR$Home[nr], RR$Away[nr]] <- 0.16
+      } else if (GoalsHome[RR$Home[nr], RR$Away[nr]] == 1 & GoalsAway[RR$Away[nr], RR$Home[nr]] == 3) {
+        ActualResults[RR$Home[nr], RR$Away[nr]] <- 0.089
+      } else if (GoalsHome[RR$Home[nr], RR$Away[nr]] == 1 & GoalsAway[RR$Away[nr], RR$Home[nr]] == 4) {
+        ActualResults[RR$Home[nr], RR$Away[nr]] <- 0.048
+      } else if (GoalsHome[RR$Home[nr], RR$Away[nr]] == 1 & GoalsAway[RR$Away[nr], RR$Home[nr]] == 5) {
+        ActualResults[RR$Home[nr], RR$Away[nr]] <- 0.037
+      } else if (GoalsHome[RR$Home[nr], RR$Away[nr]] == 1 & GoalsAway[RR$Away[nr], RR$Home[nr]] == 6) {
+        ActualResults[RR$Home[nr], RR$Away[nr]] <- 0.026
+      } else if (GoalsHome[RR$Home[nr], RR$Away[nr]] == 1 & GoalsAway[RR$Away[nr], RR$Home[nr]] >= 7) {
+        ActualResults[RR$Home[nr], RR$Away[nr]] <- 0.015
+      } else if (GoalsHome[RR$Home[nr], RR$Away[nr]] == 2 & GoalsAway[RR$Away[nr], RR$Home[nr]] == 0) {
+        ActualResults[RR$Home[nr], RR$Away[nr]] <- 0.92
+      } else if (GoalsHome[RR$Home[nr], RR$Away[nr]] == 2 & GoalsAway[RR$Away[nr], RR$Home[nr]] == 1) {
+        ActualResults[RR$Home[nr], RR$Away[nr]] <- 0.84
+      } else if (GoalsHome[RR$Home[nr], RR$Away[nr]] == 2 & GoalsAway[RR$Away[nr], RR$Home[nr]] == 2) {
+        ActualResults[RR$Home[nr], RR$Away[nr]] <- 0.51
+      } else if (GoalsHome[RR$Home[nr], RR$Away[nr]] == 2 & GoalsAway[RR$Away[nr], RR$Home[nr]] == 3) {
+        ActualResults[RR$Home[nr], RR$Away[nr]] <- 0.17
+      } else if (GoalsHome[RR$Home[nr], RR$Away[nr]] == 2 & GoalsAway[RR$Away[nr], RR$Home[nr]] == 4) {
+        ActualResults[RR$Home[nr], RR$Away[nr]] <- 0.098
+      } else if (GoalsHome[RR$Home[nr], RR$Away[nr]] == 2 & GoalsAway[RR$Away[nr], RR$Home[nr]] == 5) {
+        ActualResults[RR$Home[nr], RR$Away[nr]] <- 0.056
+      } else if (GoalsHome[RR$Home[nr], RR$Away[nr]] == 2 & GoalsAway[RR$Away[nr], RR$Home[nr]] == 6) {
+        ActualResults[RR$Home[nr], RR$Away[nr]] <- 0.044
+      } else if (GoalsHome[RR$Home[nr], RR$Away[nr]] == 2 & GoalsAway[RR$Away[nr], RR$Home[nr]] == 7) {
+        ActualResults[RR$Home[nr], RR$Away[nr]] <- 0.032
+      } else if (GoalsHome[RR$Home[nr], RR$Away[nr]] == 2 & GoalsAway[RR$Away[nr], RR$Home[nr]] >= 8) {
+        ActualResults[RR$Home[nr], RR$Away[nr]] <- 0.02
+      } else if (GoalsHome[RR$Home[nr], RR$Away[nr]] == 3 & GoalsAway[RR$Away[nr], RR$Home[nr]] == 0) {
+        ActualResults[RR$Home[nr], RR$Away[nr]] <- 0.96
+      } else if (GoalsHome[RR$Home[nr], RR$Away[nr]] == 3 & GoalsAway[RR$Away[nr], RR$Home[nr]] == 1) {
+        ActualResults[RR$Home[nr], RR$Away[nr]] <- 0.911
+      } else if (GoalsHome[RR$Home[nr], RR$Away[nr]] == 3 & GoalsAway[RR$Away[nr], RR$Home[nr]] == 2) {
+        ActualResults[RR$Home[nr], RR$Away[nr]] <- 0.83
+      } else if (GoalsHome[RR$Home[nr], RR$Away[nr]] == 3 & GoalsAway[RR$Away[nr], RR$Home[nr]] == 3) {
+        ActualResults[RR$Home[nr], RR$Away[nr]] <- 0.52
+      } else if (GoalsHome[RR$Home[nr], RR$Away[nr]] == 3 & GoalsAway[RR$Away[nr], RR$Home[nr]] == 4) {
+        ActualResults[RR$Home[nr], RR$Away[nr]] <- 0.18
+      } else if (GoalsHome[RR$Home[nr], RR$Away[nr]] == 3 & GoalsAway[RR$Away[nr], RR$Home[nr]] == 5) {
+        ActualResults[RR$Home[nr], RR$Away[nr]] <- 0.107
+      } else if (GoalsHome[RR$Home[nr], RR$Away[nr]] == 3 & GoalsAway[RR$Away[nr], RR$Home[nr]] == 6) {
+        ActualResults[RR$Home[nr], RR$Away[nr]] <- 0.064
+      } else if (GoalsHome[RR$Home[nr], RR$Away[nr]] == 3 & GoalsAway[RR$Away[nr], RR$Home[nr]] == 7) {
+        ActualResults[RR$Home[nr], RR$Away[nr]] <- 0.051
+      } else if (GoalsHome[RR$Home[nr], RR$Away[nr]] == 3 & GoalsAway[RR$Away[nr], RR$Home[nr]] == 8) {
+        ActualResults[RR$Home[nr], RR$Away[nr]] <- 0.038
+      } else if (GoalsHome[RR$Home[nr], RR$Away[nr]] == 3 & GoalsAway[RR$Away[nr], RR$Home[nr]] >= 9) {
+        ActualResults[RR$Home[nr], RR$Away[nr]] <- 0.025
+      } else if (GoalsHome[RR$Home[nr], RR$Away[nr]] == 4 & GoalsAway[RR$Away[nr], RR$Home[nr]] == 0) {
+        ActualResults[RR$Home[nr], RR$Away[nr]] <- 0.97
+      } else if (GoalsHome[RR$Home[nr], RR$Away[nr]] == 4 & GoalsAway[RR$Away[nr], RR$Home[nr]] == 1) {
+        ActualResults[RR$Home[nr], RR$Away[nr]] <- 0.952
+      } else if (GoalsHome[RR$Home[nr], RR$Away[nr]] == 4 & GoalsAway[RR$Away[nr], RR$Home[nr]] == 2) {
+        ActualResults[RR$Home[nr], RR$Away[nr]] <- 0.902
+      } else if (GoalsHome[RR$Home[nr], RR$Away[nr]] == 4 & GoalsAway[RR$Away[nr], RR$Home[nr]] == 3) {
+        ActualResults[RR$Home[nr], RR$Away[nr]] <- 0.82
+      } else if (GoalsHome[RR$Home[nr], RR$Away[nr]] == 4 & GoalsAway[RR$Away[nr], RR$Home[nr]] == 4) {
+        ActualResults[RR$Home[nr], RR$Away[nr]] <- 0.525
+      } else if (GoalsHome[RR$Home[nr], RR$Away[nr]] == 4 & GoalsAway[RR$Away[nr], RR$Home[nr]] == 5) {
+        ActualResults[RR$Home[nr], RR$Away[nr]] <- 0.19
+      } else if (GoalsHome[RR$Home[nr], RR$Away[nr]] == 4 & GoalsAway[RR$Away[nr], RR$Home[nr]] == 6) {
+        ActualResults[RR$Home[nr], RR$Away[nr]] <- 0.116
+      } else if (GoalsHome[RR$Home[nr], RR$Away[nr]] == 4 & GoalsAway[RR$Away[nr], RR$Home[nr]] == 7) {
+        ActualResults[RR$Home[nr], RR$Away[nr]] <- 0.072
+      } else if (GoalsHome[RR$Home[nr], RR$Away[nr]] == 4 & GoalsAway[RR$Away[nr], RR$Home[nr]] == 8) {
+        ActualResults[RR$Home[nr], RR$Away[nr]] <- 0.058
+      } else if (GoalsHome[RR$Home[nr], RR$Away[nr]] == 4 & GoalsAway[RR$Away[nr], RR$Home[nr]] == 9) {
+        ActualResults[RR$Home[nr], RR$Away[nr]] <- 0.044
+      } else if (GoalsHome[RR$Home[nr], RR$Away[nr]] == 4 & GoalsAway[RR$Away[nr], RR$Home[nr]] >= 10) {
+        ActualResults[RR$Home[nr], RR$Away[nr]] <- 0.03
+      } else if (GoalsHome[RR$Home[nr], RR$Away[nr]] >= 5 & GoalsAway[RR$Away[nr], RR$Home[nr]] == 0) {
+        ActualResults[RR$Home[nr], RR$Away[nr]] <- 0.98
+      } else if (GoalsHome[RR$Home[nr], RR$Away[nr]] >= 5 & GoalsAway[RR$Away[nr], RR$Home[nr]] == 1) {
+        ActualResults[RR$Home[nr], RR$Away[nr]] <- 0.963
+      } else if (GoalsHome[RR$Home[nr], RR$Away[nr]] >= 5 & GoalsAway[RR$Away[nr], RR$Home[nr]] == 2) {
+        ActualResults[RR$Home[nr], RR$Away[nr]] <- 0.944
+      } else if (GoalsHome[RR$Home[nr], RR$Away[nr]] >= 5 & GoalsAway[RR$Away[nr], RR$Home[nr]] == 3) {
+        ActualResults[RR$Home[nr], RR$Away[nr]] <- 0.893
+      } else if (GoalsHome[RR$Home[nr], RR$Away[nr]] >= 5 & GoalsAway[RR$Away[nr], RR$Home[nr]] == 4) {
+        ActualResults[RR$Home[nr], RR$Away[nr]] <- 0.81
+      } else if (GoalsHome[RR$Home[nr], RR$Away[nr]] >= 5 & GoalsAway[RR$Away[nr], RR$Home[nr]] == 5) {
+        ActualResults[RR$Home[nr], RR$Away[nr]] <- 0.53
+      } else if (GoalsHome[RR$Home[nr], RR$Away[nr]] >= 5 & GoalsAway[RR$Away[nr], RR$Home[nr]] == 6) {
+        ActualResults[RR$Home[nr], RR$Away[nr]] <- 0.2
+      } else if (GoalsHome[RR$Home[nr], RR$Away[nr]] >= 5 & GoalsAway[RR$Away[nr], RR$Home[nr]] == 7) {
+        ActualResults[RR$Home[nr], RR$Away[nr]] <- 0.125
+      } else if (GoalsHome[RR$Home[nr], RR$Away[nr]] >= 5 & GoalsAway[RR$Away[nr], RR$Home[nr]] == 8) {
+        ActualResults[RR$Home[nr], RR$Away[nr]] <- 0.080
+      } else if (GoalsHome[RR$Home[nr], RR$Away[nr]] >= 5 & GoalsAway[RR$Away[nr], RR$Home[nr]] == 9) {
+        ActualResults[RR$Home[nr], RR$Away[nr]] <- 0.065
+      } else if (GoalsHome[RR$Home[nr], RR$Away[nr]] >= 5 & GoalsAway[RR$Away[nr], RR$Home[nr]] == 10) {
+        ActualResults[RR$Home[nr], RR$Away[nr]] <- 0.05
+      } else if (GoalsHome[RR$Home[nr], RR$Away[nr]] >= 5 & GoalsAway[RR$Away[nr], RR$Home[nr]] >= 11) {
+        ActualResults[RR$Home[nr], RR$Away[nr]] <- 0.035
+      }}
+    
+    if (RatingSystem == "EloGoals" || RatingSystem == "FIFAmen" || RatingSystem == "FIFAwomen") {
+      ExpectedResults <- 1/(1+(10^(-(h+EloNew[RR$Home[nr]] - EloNew[RR$Away[nr]])/A)))
+      EloNew[RR$Home[nr]] <- EloNew[RR$Home[nr]] + K*G*(ActualResults[RR$Home[nr], RR$Away[nr]] - ExpectedResults)
+      EloNew[RR$Away[nr]] <- EloNew[RR$Away[nr]] + K*G*(abs(ActualResults[RR$Home[nr], RR$Away[nr]] -1) - (1-ExpectedResults))
+      ContinuedValue <- EloNew
+      Rating <- EloNew
+    }}
+  if (RatingSystem == "Markov") {
+    MarkovStoch <- matrix(nrow = NrTeams, ncol = NrTeams)
+    diag(MarkovStoch) <- 0
+    GoalsBG <- GoalsBG + ContinuedValues[ , , which(Systems == "Markov")]
+    for (HomeNr in 1:NrTeams) for (AwayNr in 1:NrTeams) {
+      if (HomeNr != AwayNr) {
+        MarkovStoch[HomeNr, AwayNr] <- GoalsBG[HomeNr, AwayNr]/(sum(GoalsBG[-AwayNr, AwayNr]))
+      }}
+    StatVector <- mpow(matrix = MarkovStoch, n = 100)[,1]
+    ActualResults <- MarkovStoch
+    ContinuedValue <- GoalsBG
+    Rating <- StatVector
+  }
+  if (RatingSystem == "Offense-Defense") {
+    DefenseMatrix <- matrix(nrow = NrTeams, ncol = NrTeams)
+    OffenseMatrix <- matrix(nrow = NrTeams, ncol = NrTeams)
+    DefenseVector <- rep(1, NrTeams)
+    OffenseVector <- rep(1, NrTeams)
+    GoalsBG <- GoalsBG + ContinuedValues[ , , which(Systems == "Offense-Defense")]
+    ODGoals <- GoalsBG/2
+    for (i in 1:100) {
+      for (teamnr in 1:NrTeams) {
+        for (gamenr in 1:NrTeams) {
+          OffenseMatrix[teamnr, gamenr] <- ODGoals[teamnr, gamenr]/DefenseVector[gamenr]
+          DefenseMatrix[gamenr, teamnr] <- ODGoals[gamenr, teamnr]/OffenseVector[gamenr]
+        }}
+      for (teamnr in 1:NrTeams) {
+        OffenseVector[teamnr] <- sum(OffenseMatrix[teamnr,-teamnr])
+        DefenseVector[teamnr] <- sum(DefenseMatrix[-teamnr,teamnr])
+      }}
+    ActualResults <- ODGoals
+    ContinuedValue <- GoalsBG
+    Rating <- OffenseVector/DefenseVector
+  }
+    if (RatingSystem == "BasicGoals") {
+    GoalsBG <- GoalsBG + ContinuedValues[ , , which(Systems == "BasicGoals")]
+    ActualResults <- GoalsBG
+    ContinuedValue <- GoalsBG
+    Rating <- rowSums(GoalsBG) - colSums(GoalsBG)
+  }
+  if (RatingSystem == "AdjustedGoals") {
+    diag(ActualResults) <- 0
+    ActualResults <- ActualResults + ContinuedValues[ , , which(Systems == "BasicGoals")]
+    GoalsBG <- GoalsBG
+    AGoalsBG <- matrix(0, nrow = NrTeams, ncol = NrTeams)
+    GoalsRanking <- order((rowSums(GoalsBG) - colSums(GoalsBG)), decreasing = TRUE)
+    for (HomeNr in 1:NrTeams) for (AwayNr in 1:NrTeams) {
+      if (HomeNr != AwayNr) {
+        AGoalsBG[HomeNr, AwayNr] <- GoalsBG[HomeNr, AwayNr] - GoalsBG[HomeNr, AwayNr]/((GoalsRanking[HomeNr]-GoalsRanking[AwayNr]) + NrTeams + 1)
+      }}
+    AGoalsBG <- AGoalsBG + ContinuedValues[ , , which(Systems == "AdjustedGoals")]
+    ActualResults <- AGoalsBG
+    ContinuedValue <- AGoalsBG
+    Rating <- rowSums(AGoalsBG) - colSums(AGoalsBG)
+  }
+  if (RatingSystem == "RandomRanking") {
+    Rating <- runif(NrTeams, min = 0, max = 1)
+    ContinuedValue <- Rating
+  }
+  NewRanking <- order(Rating, decreasing = TRUE)
+  Kendall <- cor(TrueRanking, NewRanking, method = "kendall")
+  
+  SystemResults <- list(ActualResults = ActualResults, ContinuedValue = ContinuedValue, Rating = Rating, NewRanking = NewRanking, Kendall = Kendall)
+  return(SystemResults)
+}
+```
+
+Function that makes a tournament based on the draws and goals, applies all systems to make ratings, makes new rankings, and calculates the Kendall for each system:
+```{r}
+Tournament <- function(NrTeams, Systems, x, y, HomeAdv = FALSE, Continue = FALSE, ContinuedValues, TrueRanking, RR) {
+  
+  ActualResultsArray <- ContinuedValuesArray <- array(dim = c(NrTeams, NrTeams, length(Systems)), dimnames = list(Teams, Teams, paste("System is", Systems)))
+  Ratings <- matrix(nrow = length(Systems), ncol = NrTeams, dimnames = list(Systems, Teams))
+  Rankings <- matrix(nrow = length(Systems), ncol = NrTeams, dimnames = list(Systems, Teams))
+  Kendalls <- matrix(nrow = length(Systems), ncol = 1, dimnames = list(Systems, "Kendallscore"))
+  DrawResults <- GenerateDrawDifference(NrTeams, x, y, HomeAdv)
+  RatioResults <- GenerateRatios(NrTeams, DrawResults$DrawHome, DrawResults$DrawAway, DrawResults$DrawDifference, x)
+  GoalResults <- GenerateGoals(NrTeams, RatioResults$AdaptedRatioAway, RatioResults$AdaptedRatioAway)
+  FactorG <- GenerateFactorG(NrTeams, GoalResults$AbsGoalDifference)
+  
+  for (syst in 1:length(Systems)) {
+    KendallResults <- GenerateKendalls(NrTeams, Systems, GoalResults$GoalDifference, GoalResults$GoalsHome, GoalResults$GoalsAway, FactorG, Continue, ContinuedValues, TrueRanking, RR, RatingSystem = Systems[syst])
+    ActualResultsArray[ , , syst] <- KendallResults$ActualResults
+    ContinuedValuesArray[ , , syst] <- KendallResults$ContinuedValue
+    Ratings[syst,] <- KendallResults$Rating
+    Rankings[syst,] <- KendallResults$NewRanking
+    Kendalls[syst,] <- KendallResults$Kendall
+  }
+  TournamentResults <- list(ActualResultsArray = ActualResultsArray, ContinuedValuesArray = ContinuedValuesArray, Ratings = Ratings, Rankings = Rankings, Kendalls = Kendalls)
+  return(TournamentResults)
+}
+```
