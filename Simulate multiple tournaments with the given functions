@@ -1,0 +1,74 @@
+The functions given in the file 'functions to simulate football matches' can be applied to simulate multiple competitions, and create a desired amount of artificial data.
+
+
+Needed variables:
+
+```{r}
+Systems <- c("BasicOutcome", "BasicGoals", "EloOutcome", "EloOutcomeHomeadv", "EloGoals", "EloGoalsHomeadv", "Ratingsnet", "FIFAmen", "FIFAwomen", "Markov", "Offense-Defense", "RandomRanking", "AnouksRanking")
+
+NrRep <- 10
+NrTour <- 10
+NrTeams <- 10
+NrRounds <- (NrTeams-1)*2
+Rep <- paste("Rep", 1:NrRep)
+Tour <- paste("Tour", 1:NrTour)
+Teams <- paste("Team", 1:NrTeams)
+
+TeamDistance <- 10
+MinMean <- 50
+MaxMean <- 200
+MinSd <- 5
+MaxSd <- 20
+FixedSd <- 5
+FixedSdPercentage <- 10
+MinSdPercentage <- 5
+MaxSdPercentage <- 25
+
+ChangingVar_first <- 1
+ChangingVar_last <- 10
+ChangingVar_steps <- 1
+ChangingVector <- seq(from = ChangingVar_first, to = ChangingVar_last, by = ChangingVar_steps)
+Vector_i <- 1:length(ChangingVector)
+
+RatingsArray <- RankingsArray <- StdvRatings <- array(dim = c(NrRep, NrTeams, length(Vector_i), length(Systems)), dimnames = list(Rep, Teams, paste("ChangingVar is", ChangingVector), paste("System is", Systems)))
+TournamentRatings <- array(dim = c(NrTour, NrTeams, NrRep, length(Vector_i), length(Systems)), dimnames = list(Tour, Teams, Rep, paste("ChangingVar is", ChangingVector), paste("System is", Systems)))
+KendallsArray <- StdvKendalls <- array(dim = c(NrRep, length(Vector_i), length(Systems)), dimnames = list(Rep, paste("ChangingVar", ChangingVector), paste("System is", Systems)))
+AverageRatings <- AverageStdvRatings <- array(dim = c(length(Vector_i), NrTeams, length(Systems)), dimnames = list(paste("ChangingVar", ChangingVector), Teams, paste("System is", Systems)))
+AverageKendalls <- AverageStdvKendalls <- array(dim = c(length(Vector_i), length(Systems)), dimnames = list(paste("ChangingVar", ChangingVector), Systems))
+```
+
+Simulate multiple tournaments and replications using the written functions, saving them in arrays, and generating plots.
+
+```{r}
+for (i in Vector_i) {
+  TeamDistance <- ChangingVar_first + ChangingVar_steps*i - ChangingVar_steps
+  RR <- GenerateRoundRobin(NrTeams, NrRounds, Shuffle = TRUE)
+  x <- GenerateMean(NrTeams, MinMean, MaxMean, TeamDistance, Calculation = "Fixed")
+  y <- GenerateSd(NrTeams, FixedSd, MinSd, MaxSd, FixedSdPercentage, MinSdPercentage, MaxSdPercentage, Calculation = "RandomPercentage") 
+  TrueRanking <- order(x, decreasing = TRUE)
+  
+  for(rep in 1:NrRep) {
+    print(paste("i =", TeamDistance, ", rep =", rep))
+    StartResults <- Tournament(NrTeams, Systems, x, y, HomeAdv = TRUE, Continue = FALSE, ContinuedValues, TrueRanking, RR)
+    ContinuedValues <- StartResults$ContinuedValuesArray
+     
+    for (tour in 1:NrTour) {
+      TournamentResults <- Tournament(NrTeams, Systems, x, y, HomeAdv = TRUE, Continue = TRUE, ContinuedValues, TrueRanking, RR)
+      ContinuedValues <- TournamentResults$ContinuedValuesArray
+      TournamentRatings[tour, ,rep, i, ] <- t(TournamentResults$Ratings)
+    }
+    RatingsArray[rep, , i, ] <- t(TournamentResults$Ratings)
+    RankingsArray[rep, , i, ] <- t(TournamentResults$Rankings)
+    KendallsArray[rep, i, ] <- t(TournamentResults$Kendalls)
+  }
+  for (syst in 1:length(Systems)) {
+    AverageRatings[i, , syst] <- colMeans(RatingsArray[, , i, syst])
+    AverageKendalls[i, syst] <- mean(KendallsArray[, i, syst])
+  }
+  for (rep in 1:NrRep) for (syst in 1:length(Systems)) {
+    StdvRatings[rep, , i, syst] <- sqrt((RatingsArray[rep, , i, syst] - AverageRatings[i, , syst])^2) 
+    StdvKendalls[rep, i, syst] <- sqrt((KendallsArray[rep, i, syst] - AverageKendalls[i, syst])^2)
+    AverageStdvRatings[i, , syst] <- colMeans(StdvRatings[, , i, syst])
+    AverageStdvKendalls[i, syst] <- mean(StdvKendalls[, i, syst])
+  }}
+```
