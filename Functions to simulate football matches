@@ -1,6 +1,5 @@
 
-**Code with all functions needed to create a tournament, and get ranking results for a given rating system**
-
+Code with all functions needed to create a tournament, with randomly created teams, apply a given rating system, and compare its produced ranking with the 'true' ranking.
 *First, define functions that create an artificial tournament*
 
 Function that creates a round robin schedule for the tournament:
