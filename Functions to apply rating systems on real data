@@ -1,0 +1,423 @@
+Function to calculate the "Actual Results", which are differently defined by different rating systems, and the original score (OR), using the classic system of 3 points for a win, 1 for a tie, 0 for a loss. 
+
+```{r}
+ARColumns <- function(Data) {
+  OR_Home <- vector("numeric", length = nrow(Data))
+  OR_Away <- vector("numeric", length = nrow(Data))
+  AR_Basic <- vector("numeric", length = nrow(Data))
+  AR_EloGoals <- vector("numeric", length = nrow(Data))
+  AR_FIFAwomen <- vector("numeric", length = nrow(Data))
+  
+  for (row in 1:nrow(Data)) {
+    if (Data$GD[row] > 0) {
+      AR_Basic[row] <- 1
+      OR_Home[row] <- 3
+      OR_Away[row] <- 0
+    } else if (Data$GD[row] == 0) {
+      AR_Basic[row] <- 0.5
+      OR_Home[row] <- 1
+      OR_Away[row] <- 1
+    } else if (Data$GD[row] < 0) {
+      AR_Basic[row] <- 0
+      OR_Home[row] <- 0
+      OR_Away[row] <- 3
+    }
+    AR_EloGoals[row] <- (Data$HS[row] + 1)/(Data$HS[row] + Data$AS[row] + 2)
+    
+    if (Data$HS[row] == 0 & Data$AS[row] == 0) {
+      AR_FIFAwomen[row] <- 0.47
+    } else if (Data$HS[row] == 0 & Data$AS[row] == 1) {
+      AR_FIFAwomen[row] <- 0.15
+    } else if (Data$HS[row] == 0 & Data$AS[row] == 2) {
+      AR_FIFAwomen[row] <- 0.08
+    } else if (Data$HS[row] == 0 & Data$AS[row] == 3) {
+      AR_FIFAwomen[row] <- 0.04
+    } else if (Data$HS[row] == 0 & Data$AS[row] == 4) {
+      AR_FIFAwomen[row] <- 0.03
+    } else if (Data$HS[row] == 0 & Data$AS[row] == 5) {
+      AR_FIFAwomen[row] <- 0.02
+    } else if (Data$HS[row] == 0 & Data$AS[row] >= 6) {
+      AR_FIFAwomen[row] <- 0.01
+    } else if (Data$HS[row] == 1 & Data$AS[row] == 0) {
+      AR_FIFAwomen[row] <- 0.85
+    } else if (Data$HS[row] == 1 & Data$AS[row] == 1) {
+      AR_FIFAwomen[row] <- 0.5
+    } else if (Data$HS[row] == 1 & Data$AS[row] == 2) {
+      AR_FIFAwomen[row] <- 0.16
+    } else if (Data$HS[row] == 1 & Data$AS[row] == 3) {
+      AR_FIFAwomen[row] <- 0.089
+    } else if (Data$HS[row] == 1 & Data$AS[row] == 4) {
+      AR_FIFAwomen[row] <- 0.048
+    } else if (Data$HS[row] == 1 & Data$AS[row] == 5) {
+      AR_FIFAwomen[row] <- 0.037
+    } else if (Data$HS[row] == 1 & Data$AS[row] == 6) {
+      AR_FIFAwomen[row] <- 0.026
+    } else if (Data$HS[row] == 1 & Data$AS[row] >= 7) {
+      AR_FIFAwomen[row] <- 0.015
+    } else if (Data$HS[row] == 2 & Data$AS[row] == 0) {
+      AR_FIFAwomen[row] <- 0.92
+    } else if (Data$HS[row] == 2 & Data$AS[row] == 1) {
+      AR_FIFAwomen[row] <- 0.84
+    } else if (Data$HS[row] == 2 & Data$AS[row] == 2) {
+      AR_FIFAwomen[row] <- 0.51
+    } else if (Data$HS[row] == 2 & Data$AS[row] == 3) {
+      AR_FIFAwomen[row] <- 0.17
+    } else if (Data$HS[row] == 2 & Data$AS[row] == 4) {
+      AR_FIFAwomen[row] <- 0.098
+    } else if (Data$HS[row] == 2 & Data$AS[row] == 5) {
+      AR_FIFAwomen[row] <- 0.056
+    } else if (Data$HS[row] == 2 & Data$AS[row] == 6) {
+      AR_FIFAwomen[row] <- 0.044
+    } else if (Data$HS[row] == 2 & Data$AS[row] == 7) {
+      AR_FIFAwomen[row] <- 0.032
+    } else if (Data$HS[row] == 2 & Data$AS[row] >= 8) {
+      AR_FIFAwomen[row] <- 0.02
+    } else if (Data$HS[row] == 3 & Data$AS[row] == 0) {
+      AR_FIFAwomen[row] <- 0.96
+    } else if (Data$HS[row] == 3 & Data$AS[row] == 1) {
+      AR_FIFAwomen[row] <- 0.911
+    } else if (Data$HS[row] == 3 & Data$AS[row] == 2) {
+      AR_FIFAwomen[row] <- 0.83
+    } else if (Data$HS[row] == 3 & Data$AS[row] == 3) {
+      AR_FIFAwomen[row] <- 0.52
+    } else if (Data$HS[row] == 3 & Data$AS[row] == 4) {
+      AR_FIFAwomen[row] <- 0.18
+    } else if (Data$HS[row] == 3 & Data$AS[row] == 5) {
+      AR_FIFAwomen[row] <- 0.107
+    } else if (Data$HS[row] == 3 & Data$AS[row] == 6) {
+      AR_FIFAwomen[row] <- 0.064
+    } else if (Data$HS[row] == 3 & Data$AS[row] == 7) {
+      AR_FIFAwomen[row] <- 0.051
+    } else if (Data$HS[row] == 3 & Data$AS[row] == 8) {
+      AR_FIFAwomen[row] <- 0.038
+    } else if (Data$HS[row] == 3 & Data$AS[row] >= 9) {
+      AR_FIFAwomen[row] <- 0.025
+    } else if (Data$HS[row] == 4 & Data$AS[row] == 0) {
+      AR_FIFAwomen[row] <- 0.97
+    } else if (Data$HS[row] == 4 & Data$AS[row] == 1) {
+      AR_FIFAwomen[row] <- 0.952
+    } else if (Data$HS[row] == 4 & Data$AS[row] == 2) {
+      AR_FIFAwomen[row] <- 0.902
+    } else if (Data$HS[row] == 4 & Data$AS[row] == 3) {
+      AR_FIFAwomen[row] <- 0.82
+    } else if (Data$HS[row] == 4 & Data$AS[row] == 4) {
+      AR_FIFAwomen[row] <- 0.525
+    } else if (Data$HS[row] == 4 & Data$AS[row] == 5) {
+      AR_FIFAwomen[row] <- 0.19
+    } else if (Data$HS[row] == 4 & Data$AS[row] == 6) {
+      AR_FIFAwomen[row] <- 0.116
+    } else if (Data$HS[row] == 4 & Data$AS[row] == 7) {
+      AR_FIFAwomen[row] <- 0.072
+    } else if (Data$HS[row] == 4 & Data$AS[row] == 8) {
+      AR_FIFAwomen[row] <- 0.058
+    } else if (Data$HS[row] == 4 & Data$AS[row] == 9) {
+      AR_FIFAwomen[row] <- 0.044
+    } else if (Data$HS[row] == 4 & Data$AS[row] >= 10) {
+      AR_FIFAwomen[row] <- 0.03
+    } else if (Data$HS[row] >= 5 & Data$AS[row] == 0) {
+      AR_FIFAwomen[row] <- 0.98
+    } else if (Data$HS[row] >= 5 & Data$AS[row] == 1) {
+      AR_FIFAwomen[row] <- 0.963
+    } else if (Data$HS[row] >= 5 & Data$AS[row] == 2) {
+      AR_FIFAwomen[row] <- 0.944
+    } else if (Data$HS[row] >= 5 & Data$AS[row] == 3) {
+      AR_FIFAwomen[row] <- 0.893
+    } else if (Data$HS[row] >= 5 & Data$AS[row] == 4) {
+      AR_FIFAwomen[row] <- 0.81
+    } else if (Data$HS[row] >= 5 & Data$AS[row] == 5) {
+      AR_FIFAwomen[row] <- 0.53
+    } else if (Data$HS[row] >= 5 & Data$AS[row] == 6) {
+      AR_FIFAwomen[row] <- 0.2
+    } else if (Data$HS[row] >= 5 & Data$AS[row] == 7) {
+      AR_FIFAwomen[row] <- 0.125
+    } else if (Data$HS[row] >= 5 & Data$AS[row] == 8) {
+      AR_FIFAwomen[row] <- 0.080
+    } else if (Data$HS[row] >= 5 & Data$AS[row] == 9) {
+      AR_FIFAwomen[row] <- 0.065
+    } else if (Data$HS[row] >= 5 & Data$AS[row] == 10) {
+      AR_FIFAwomen[row] <- 0.05
+    } else if (Data$HS[row] >= 5 & Data$AS[row] >= 11) {
+      AR_FIFAwomen[row] <- 0.035
+    }}
+  
+  ARList<- list(OR_Home = OR_Home, OR_Away = OR_Away, AR_Basic = AR_Basic, AR_EloGoals = AR_EloGoals, AR_FIFAwomen = AR_FIFAwomen)
+  return(ARList)
+}
+```
+
+Function to calculate the different "K" values, representing the importance of a match for the elo systems:
+
+```{r}
+KColumns <- function(Data) {
+  K_Ratingsnet <- vector("numeric", length = nrow(Data))
+  K_FIFAmen <- vector("numeric", length = nrow(Data))
+  K_FIFAwomen <- vector("numeric", length = nrow(Data))
+  
+  for(row in 1:nrow(Data)) {
+    if (Data$Tournament[row] == "Friendly") {
+      K_Ratingsnet[row] <- 20
+      K_FIFAmen[row] <- 10
+      K_FIFAwomen[row] <- 15
+    } else if (Data$Tournament[row] == "UEFA Euro qualification") {
+      K_Ratingsnet[row] <- 40
+      K_FIFAmen[row] <- 25
+      K_FIFAwomen[row] <- 30
+    } else if (Data$Tournament[row] == "FIFA World Cup qualification") {
+      K_Ratingsnet[row] <- 40
+      K_FIFAmen[row] <- 25
+      K_FIFAwomen[row] <- 45
+    } else if (Data$Tournament[row] == "UEFA Euro") {
+      K_Ratingsnet[row] <- 50
+      K_FIFAmen[row] <- 50
+      K_FIFAwomen[row] <- 45
+    } else if (Data$Tournament[row] == "FIFA World Cup") {
+      K_Ratingsnet[row] <- 50
+      K_FIFAmen[row] <- 50
+      K_FIFAwomen[row] <- 60
+    } else {
+      K_Ratingsnet[row] <- 30
+      K_FIFAmen[row] <- 25
+      K_FIFAwomen[row] <- 30
+    }}
+  KList<- list(K_Ratingsnet = K_Ratingsnet, K_FIFAmen = K_FIFAmen, K_FIFAwomen = K_FIFAwomen)
+  return(KList)
+}
+```
+
+
+Function needed to calculate the stationary vector of a stochastic matrix, needed for the Markov system.
+
+```{r}
+mpow <- function(matrix, n) {
+  if (n == 0) diag(nrow(matrix))
+  else if (n == 1) matrix
+  else matrix %*% mpow(matrix, n - 1)
+}
+``'
+
+Function that uses al given information to apply all rating systems on the given data, gives rankings based on those systems, and makes predictions about the next games:
+
+```{r}
+GenerateSystemResults <- function(HistoricData, NewData, Teams, NrTeams, ImportanceDifference = FALSE, PredictTies = FALSE, Window, TieTreshold, RatingSystem) {
+  Data <- bind_rows(HistoricData, NewData)
+  Datasplit <-  nrow(HistoricData)
+  NrNoDraws <- nrow(NewData[ , -c(which(NewData$WDL == "D"))])
+  NrTies <- CorrectPredictions <- IncorrectPredictions <- CorrectTies <- IncorrectTies <- CorrectLosses <- IncorrectLosses <- CorrectWins <- IncorrectWins <- PredictD_ActualD <- PredictD_ActualL <- PredictD_ActualW <- PredictL_ActualD <- PredictL_ActualL <- PredictL_ActualW <- PredictW_ActualD <- PredictW_ActualL <- PredictW_ActualW <- 0
+  RatingsPerGame <- matrix(nrow = nrow(Data), ncol = NrTeams)
+  GoalMatrix <- matrix(0, nrow = NrTeams, ncol = NrTeams)
+  EloNew <- matrix(1000, nrow = NrTeams, ncol = 1, dimnames = list(Teams, "EloScore"))
+  Rating <- matrix(0, nrow = NrTeams, ncol = 1, dimnames = list(Teams, "Rating"))
+  Ranking <- matrix(nrow = NrTeams, ncol = 1, dimnames = list(Teams, "Ranking"))
+  if (PredictTies == FALSE) {
+    CorrectPredictionVector <- CorrectPercentageVector <- vector("numeric", length = NrNoDraws)
+  } else if (PredictTies == TRUE) {
+    CorrectPredictionVector <- CorrectPercentageVector <- vector("numeric", length = nrow(NewData))
+  }
+  
+  if (RatingSystem == "EloOutcome" ||  RatingSystem == "EloGoals") {
+    A <- 400
+    h <- 0
+  } else if (RatingSystem == "EloOutcomeHomeadv" || RatingSystem == "EloGoalsHomeadv" || RatingSystem == "Ratingsnet" || RatingSystem == "FIFAwomen") {
+    A <- 400
+    h <- 100
+  } else if (RatingSystem == "FIFAmen") {
+    A <- 600
+    h <- 0
+  }
+  if (ImportanceDifference == FALSE) {
+    K <- rep(30, nrow(Data))
+  } else if (ImportanceDifference == TRUE) {
+    if (RatingSystem == "Ratingsnet") {
+      K <- Data$K_Ratingsnet
+    } else if (RatingSystem == "FIFAmen") {
+      K <- Data$K_FIFAmen
+    } else if (RatingSystem == "FIFAwomen") {
+      K <- Data$K_FIFAwomen
+    } else {
+      K <- rep(30, nrow(Data))
+    }}
+  if  (RatingSystem == 'FIFAmen") {
+    ActualResults <- Data$AR_Basic
+  } else if (RatingSystem == "EloGoals") {
+    ActualResults <- Data$AR_EloGoals
+  } else if (RatingSystem == "FIFAwomen") {
+    ActualResults <- Data$AR_FIFAwomen
+  }
+  for(row in 1:nrow(Data)) {
+    GoalMatrix[which(Teams == Data$HT[row]), which(Teams == Data$AT[row])] <- GoalMatrix[which(Teams == Data$HT[row]), which(Teams == Data$AT[row])] + Data$HS[row]
+    GoalMatrix[which(Teams == Data$AT[row]), which(Teams == Data$HT[row])] <- GoalMatrix[which(Teams == Data$AT[row]), which(Teams == Data$HT[row])] + Data$AS[row]
+    
+    if (Window != 'None' & row > Window) {
+      GoalMatrix[which(Teams == Data$HT[row - Window]), which(Teams == Data$AT[row - Window])] <-  GoalMatrix[which(Teams == Data$HT[row - Window]), which(Teams == Data$AT[row - Window])] - Data$HS[row - Window]
+      GoalMatrix[which(Teams == Data$AT[row - Window]), which(Teams == Data$HT[row - Window])] <-  GoalMatrix[which(Teams == Data$AT[row - Window]), which(Teams == Data$HT[row - Window])] - Data$AS[row - Window]
+    }
+    if (row > Datasplit) {
+      if (PredictTies == FALSE) {
+        if (Data$WDL[row] == "D") {
+          NrTies <- NrTies + 1
+        } else {
+          if (Rating[which(Teams == Data$HT[row])] >= Rating[which(Teams == Data$AT[row])]) {
+            Prediction <- "W"
+          } else if (Rating[which(Teams == Data$HT[row])] < Rating[which(Teams == Data$AT[row])]) {
+            Prediction <- "L"
+          }
+          if (Data$WDL[row] == "L") {
+            if (Data$WDL[row] == Prediction) {
+              CorrectLosses <- CorrectLosses + 1
+              CorrectPredictions <- CorrectPredictions + 1
+              CorrectPredictionVector[row - Datasplit] <- 1
+            } else if (Data$WDL[row] != Prediction) {
+              IncorrectLosses <- IncorrectLosses + 1
+              IncorrectPredictions <- IncorrectPredictions + 1
+              CorrectPredictionVector[row - Datasplit] <- 0
+            }}
+          if (Data$WDL[row] == "W") {
+            if (Data$WDL[row] == Prediction) {
+              CorrectWins <- CorrectWins + 1
+              CorrectPredictions <- CorrectPredictions + 1
+              CorrectPredictionVector[row - Datasplit] <- 1
+            } else if (Data$WDL[row] != Prediction) {
+              IncorrectWins <- IncorrectWins + 1
+              IncorrectPredictions <- IncorrectPredictions + 1
+              CorrectPredictionVector[row - Datasplit] <- 0
+            }}}
+        CorrectPercentageVector[row - Datasplit] <- CorrectPredictions/(CorrectPredictions + IncorrectPredictions)
+      }
+      if (PredictTies == TRUE) { 
+        if ((Rating[which(Teams == Data$AT[row])] + (max(Rating) - min(Rating)) * TieTreshold) >= Rating[which(Teams == Data$HT[row])] & Rating[which(Teams == Data$HT[row])] >= (Rating[which(Teams == Data$AT[row])] - (max(Rating) - min(Rating)) * TieTreshold)) {
+          Prediction <- "D"
+        } else if (Rating[which(Teams == Data$HT[row])] < Rating[which(Teams == Data$AT[row])] - (max(Rating) - min(Rating)) * TieTreshold) {
+          Prediction <- "L"
+        } else if (Rating[which(Teams == Data$HT[row])] > Rating[which(Teams == Data$AT[row])] + (max(Rating) - min(Rating)) * TieTreshold) {
+          Prediction <- "W"
+        }
+        if (Data$WDL[row] == "D") {
+          if (Prediction == "D") {
+            CorrectTies <- CorrectTies + 1
+            CorrectPredictions <- CorrectPredictions + 1
+            PredictD_ActualD <- PredictD_ActualD + 1
+            CorrectPredictionVector[row - Datasplit] <- 1
+          } else if (Prediction == "L") {
+            IncorrectTies <- IncorrectTies + 1
+            IncorrectPredictions <- IncorrectPredictions + 1
+            PredictL_ActualD <- PredictL_ActualD + 1
+            CorrectPredictionVector[row - Datasplit] <- 0
+          } else if (Prediction == "W") {
+            IncorrectTies <- IncorrectTies + 1
+            IncorrectPredictions <- IncorrectPredictions + 1
+            PredictW_ActualD <- PredictW_ActualD + 1
+            CorrectPredictionVector[row - Datasplit] <- 0
+          }}
+        if (Data$WDL[row] == "L") {
+          if (Prediction == "L") {
+            CorrectLosses <- CorrectLosses + 1
+            CorrectPredictions <- CorrectPredictions + 1
+            PredictL_ActualL <- PredictL_ActualL + 1
+            CorrectPredictionVector[row - Datasplit] <- 1
+          } else if (Prediction == "D") {
+            IncorrectTies <- IncorrectTies + 1
+            IncorrectPredictions <- IncorrectPredictions + 1
+            PredictD_ActualL <- PredictD_ActualL + 1
+            CorrectPredictionVector[row - Datasplit] <- 0
+          } else if (Prediction == "W") {
+            IncorrectTies <- IncorrectTies + 1
+            IncorrectPredictions <- IncorrectPredictions + 1
+            PredictW_ActualL <- PredictW_ActualL + 1
+            CorrectPredictionVector[row - Datasplit] <- 0
+          }}
+        if (Data$WDL[row] == "W") {
+          if (Prediction == "W") {
+            CorrectWins <- CorrectWins + 1
+            CorrectPredictions <- CorrectPredictions + 1
+            PredictW_ActualW <- PredictW_ActualW + 1
+            CorrectPredictionVector[row - Datasplit] <- 1
+          } else if (Prediction == "D") {
+            IncorrectTies <- IncorrectTies + 1
+            IncorrectPredictions <- IncorrectPredictions + 1
+            PredictD_ActualW <- PredictD_ActualW + 1
+            CorrectPredictionVector[row - Datasplit] <- 0
+          } else if (Prediction == "L") {
+            IncorrectTies <- IncorrectTies + 1
+            IncorrectPredictions <- IncorrectPredictions + 1
+            PredictL_ActualW <- PredictL_ActualW + 1
+            CorrectPredictionVector[row - Datasplit] <- 0
+          }}
+        CorrectPercentageVector[row - Datasplit] <- CorrectPredictions/(CorrectPredictions + IncorrectPredictions)
+      }
+    }
+    if (RatingSystem == "EloGoals" || RatingSystem == "FIFAmen" || RatingSystem == "FIFAwomen") {
+      ExpectedResults <- 1/(1+(10^(-(h+EloNew[which(Teams == Data$HT[row])] - EloNew[which(Teams == Data$AT[row])])/A)))
+      EloNew[which(Teams == Data$HT[row])] <- EloNew[which(Teams == Data$HT[row])] + K[row]*G[row]*(ActualResults[row] - ExpectedResults)
+      EloNew[which(Teams == Data$AT[row])]<- EloNew[which(Teams == Data$AT[row])] + K[row]*G[row]*(abs(ActualResults[row] -1) - (1-ExpectedResults))
+      Rating <- EloNew
+    }
+    if (RatingSystem == "BasicGoals") {
+      Rating[which(Teams == Data$HT[row])] <- Rating[which(Teams == Data$HT[row])] + Data$GD[row]
+      Rating[which(Teams == Data$AT[row])] <- Rating[which(Teams == Data$AT[row])] - Data$GD[row]
+      if (Window != 'None' & row > Window) {
+      Rating[which(Teams == Data$HT[row - Window])] <- Rating[which(Teams == Data$HT[row - Window])] - Data$GD[row - Window]
+      Rating[which(Teams == Data$AT[row - Window])] <- Rating[which(Teams == Data$AT[row - Window])] + Data$GD[row - Window]
+      }}
+    if (RatingSystem == "Markov") {
+      MarkovStoch <- GoalMatrix
+      for (HomeNr in 1:NrTeams) for (AwayNr in 1:NrTeams) {
+        if (HomeNr != AwayNr) {
+          MarkovStoch[HomeNr, AwayNr] <- GoalMatrix[HomeNr, AwayNr]/(sum(GoalMatrix[-AwayNr, AwayNr]))
+        }}
+      for (ColNr in 1:NrTeams) {
+        if (length(which(GoalMatrix[,ColNr] == 0)) == NrTeams) {
+          MarkovStoch[,ColNr] <- rep(1/(NrTeams), NrTeams)
+        }}
+      StatVector <- mpow(matrix = MarkovStoch, n = 100)[,1]
+      Rating[] <- StatVector
+    }
+    if (RatingSystem == "Offense-Defense") {
+      DefenseMatrix <- matrix(0, nrow = NrTeams, ncol = NrTeams)
+      OffenseMatrix <- matrix(0, nrow = NrTeams, ncol = NrTeams)
+      DefenseVector <- rep(1, NrTeams)
+      OffenseVector <- rep(1, NrTeams)
+      for (i in 1:100) {
+        for (teamnr in 1:NrTeams) {
+          for (gamenr in 1:NrTeams) {
+            OffenseMatrix[teamnr, gamenr] <- GoalMatrix[teamnr, gamenr]/DefenseVector[gamenr]
+            DefenseMatrix[gamenr, teamnr] <- GoalMatrix[gamenr, teamnr]/OffenseVector[gamenr]
+          }}
+        for (teamnr in 1:NrTeams) {
+          OffenseVector[teamnr] <- sum(OffenseMatrix[teamnr,-teamnr])
+          DefenseVector[teamnr] <- sum(DefenseMatrix[-teamnr,teamnr])
+        }
+        OffenseVector[which(OffenseVector == 0)] <- 1
+        DefenseVector[which(DefenseVector == 0)] <- 1
+      }
+      Rating[] <- OffenseVector/DefenseVector
+    }
+    if (RatingSystem == "AdjustedGoals") {
+      GoalsRanking <- order(Rating, decreasing = TRUE)
+      AGoalMatrix <- GoalMatrix
+      for (HomeNr in 1:NrTeams) for (AwayNr in 1:NrTeams) {
+        if (HomeNr != AwayNr) {
+          AGoalMatrix[HomeNr, AwayNr] <- GoalMatrix[HomeNr, AwayNr] - GoalMatrix[HomeNr, AwayNr]/((GoalsRanking[HomeNr] - GoalsRanking[AwayNr]) + NrTeams + 1)
+        }}
+      Rating[] <- rowSums(AGoalMatrix) - colSums(AGoalMatrix)
+    }
+    if (RatingSystem == "RandomRanking") {
+      Rating[] <- runif(NrTeams, min = 0, max = 1)
+    }
+    RatingsPerGame[row,] <- Rating
+    TeamRank <- vector("character", length = NrTeams)
+    OrderRating <- order(Rating, decreasing = TRUE)
+    for (nr in OrderRating) {
+      TeamRank[which(OrderRating == nr)] <- Teams[nr]
+    }
+    for (colNr in 1:NrTeams) {
+      Ranking[colNr] <- which(TeamRank == Teams[colNr])
+    }
+  }
+  if (PredictTies == FALSE) {
+    SystemResults <- list(NrTies = NrTies, CorrectLosses = CorrectLosses, IncorrectLosses = IncorrectLosses, CorrectWins = CorrectWins, IncorrectWins = IncorrectWins, CorrectPredictions = CorrectPredictions, IncorrectPredictions = IncorrectPredictions, CorrectPredictionVector = CorrectPredictionVector, CorrectPercentageVector = CorrectPercentageVector, RatingsPerGame = RatingsPerGame, Rating = Rating, Ranking = Ranking, TeamRank = TeamRank, GoalMatrix = GoalMatrix)
+  } else if (PredictTies == TRUE) {
+    SystemResults <- list(CorrectTies = CorrectTies, IncorrectTies = IncorrectTies, CorrectLosses = CorrectLosses, IncorrectLosses = IncorrectLosses, CorrectWins = CorrectWins, IncorrectWins = IncorrectWins, CorrectPredictions = CorrectPredictions, IncorrectPredictions = IncorrectPredictions, PredictD_ActualD = PredictD_ActualD, PredictD_ActualL = PredictD_ActualL, PredictD_ActualW = PredictD_ActualW, PredictL_ActualD = PredictL_ActualD, PredictL_ActualL = PredictL_ActualL, PredictL_ActualW = PredictL_ActualW, PredictW_ActualD = PredictW_ActualD, PredictW_ActualL = PredictW_ActualL, PredictW_ActualW = PredictW_ActualW, CorrectPredictionVector = CorrectPredictionVector, CorrectPercentageVector = CorrectPercentageVector, RatingsPerGame = RatingsPerGame, Rating = Rating, Ranking = Ranking, TeamRank = TeamRank, GoalMatrix = GoalMatrix)
+  }
+  return(SystemResults)
+}
+```
