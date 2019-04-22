@@ -13,8 +13,6 @@ NrRounds <- (NrTeams-1)*2
 Rep <- paste("Rep", 1:NrRep)
 Tour <- paste("Tour", 1:NrTour)
 Teams <- paste("Team", 1:NrTeams)
-
-TeamDistance <- 10
 MinMean <- 50
 MaxMean <- 200
 MinSd <- 5
