@@ -2,7 +2,7 @@ The functions given in the file 'functions to simulate football matches' can be 
 Needed variables:
 
 ```{r}
-Systems <- c("BasicOutcome", "BasicGoals", "EloOutcome", "EloOutcomeHomeadv", "EloGoals", "EloGoalsHomeadv", "Ratingsnet", "FIFAmen", "FIFAwomen", "Markov", "Offense-Defense", "RandomRanking", "AnouksRanking")
+Systems <- c("Markov", "Offense-Defense", "EloGoals, "FIFAmen", "FIFAwomen", "BasicGoals", "AdjustedGoals")
 
 NrTeams <- 10
 NrRounds <- (NrTeams-1)*2
