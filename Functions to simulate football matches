@@ -364,7 +364,6 @@ Tournament <- function(NrTeams, Systems, x, y, HomeAdv = FALSE, Continue = FALSE
   DrawResults <- GenerateDrawDifference(NrTeams, x, y, HomeAdv)
   RatioResults <- GenerateRatios(NrTeams, DrawResults$DrawHome, DrawResults$DrawAway, DrawResults$DrawDifference, x)
   GoalResults <- GenerateGoals(NrTeams, RatioResults$AdaptedRatioAway, RatioResults$AdaptedRatioAway)
-  FactorG <- GenerateFactorG(NrTeams, GoalResults$AbsGoalDifference)
   
   for (syst in 1:length(Systems)) {
     KendallResults <- GenerateKendalls(NrTeams, Systems, GoalResults$GoalDifference, GoalResults$GoalsHome, GoalResults$GoalsAway, FactorG, Continue, ContinuedValues, TrueRanking, RR, RatingSystem = Systems[syst])
