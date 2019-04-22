@@ -1,0 +1,47 @@
+The functions given in the file 'functions to simulate football matches' can be applied to simulate one tournament, so that all information about the results and scores is saved.
+Needed variables:
+
+```{r}
+Systems <- c("BasicOutcome", "BasicGoals", "EloOutcome", "EloOutcomeHomeadv", "EloGoals", "EloGoalsHomeadv", "Ratingsnet", "FIFAmen", "FIFAwomen", "Markov", "Offense-Defense", "RandomRanking", "AnouksRanking")
+
+NrTeams <- 10
+NrRounds <- (NrTeams-1)*2
+Teams <- paste("Team", 1:NrTeams)
+
+TeamDistance <- 10
+MinMean <- 50
+MaxMean <- 200
+MinSd <- 1
+MaxSd <- 20
+FixedSd <- 10
+FixedSdPercentage <- 10
+MinSdPercentage <- 1
+MaxSdPercentage <- 20
+```
+
+Generate the tournament by using the functions to create draws, goals, a round robin schedule, and to apply the rating systems.
+
+```{r}
+RR <- GenerateRoundRobin(NrTeams, NrRounds, Shuffle = TRUE)
+x <- GenerateMean(NrTeams, MinMean, MaxMean, TeamDistance, Calculation = "Fixed")
+y <- GenerateSd(NrTeams, FixedSd, MinSd, MaxSd, FixedSdPercentage, MinSdPercentage, MaxSdPercentage, Calculation = "RandomPercentage") 
+TrueRanking <- order(x, decreasing = TRUE)
+
+ActualResultsArray <- ContinuedValuesArray <- array(dim = c(NrTeams, NrTeams, length(Systems)), dimnames = list(Teams, Teams, paste("System is", Systems)))
+  Ratings <- matrix(nrow = length(Systems), ncol = NrTeams, dimnames = list(Systems, Teams))
+  Rankings <- matrix(nrow = length(Systems), ncol = NrTeams, dimnames = list(Systems, Teams))
+  Kendalls <- matrix(nrow = length(Systems), ncol = 1, dimnames = list(Systems, "Kendallscore"))
+  DrawResults <- GenerateDrawDifference(NrTeams, x, y, HomeAdv = FALSE)
+  RatioResults <- GenerateRatios(NrTeams, DrawResults$DrawHome, DrawResults$DrawAway, DrawResults$DrawDifference, x)
+  GoalResults <- GenerateGoals(NrTeams, RatioResults$AdaptedRatioAway, RatioResults$AdaptedRatioAway)
+  FactorG <- GenerateFactorG(NrTeams, GoalResults$AbsGoalDifference)
+
+  for (syst in 1:length(Systems)) {
+    KendallResults <- GenerateKendalls(NrTeams, Systems, GoalResults$GoalDifference, GoalResults$GoalsHome, GoalResults$GoalsAway, FactorG, Continue = FALSE, ContinuedValues, TrueRanking, RR, RatingSystem = Systems[syst])
+    ActualResultsArray[ , , syst] <- KendallResults$ActualResults
+    ContinuedValuesArray[ , , syst] <- KendallResults$ContinuedValue
+    Ratings[syst,] <- KendallResults$Rating
+    Rankings[syst,] <- KendallResults$NewRanking
+    Kendalls[syst,] <- KendallResults$Kendall
+  }  
+```
